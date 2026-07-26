@@ -16,7 +16,7 @@ router.post(
 );
 
 router.get(
-    "/tickets/:passengerId",
+    "/tickets/:userId",
     controller.getMyTickets
 );
 
