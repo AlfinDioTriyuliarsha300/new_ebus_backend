@@ -170,3 +170,112 @@ exports.buyTicket = async (req, res) => {
 
     }
 };
+
+exports.getMyTicket = async (req, res) => {
+
+    try {
+
+        const userId = parseInt(req.params.userId);
+
+        const result = await pool.query(
+        `
+        SELECT
+
+            t.id,
+
+            t.ticket_number,
+
+            t.passenger_name,
+
+            t.phone,
+
+            t.seat_number,
+
+            t.status,
+
+            b.id AS bus_id,
+
+            b.nomor_bus,
+
+            b.plat_nomor,
+
+            s.id AS schedule_id
+
+        FROM tickets t
+
+        JOIN buses b
+        ON b.id = t.bus_id
+
+        JOIN schedules s
+        ON s.id = t.schedule_id
+
+        WHERE
+
+            t.user_id = $1
+
+        ORDER BY t.created_at DESC
+
+        LIMIT 1
+        `,
+        [userId]
+        );
+
+        if(result.rows.length == 0){
+
+            return res.json({
+
+                success:true,
+
+                data:null
+
+            });
+
+        }
+
+        const row = result.rows[0];
+
+        res.json({
+
+            success:true,
+
+            data:{
+
+                ticket_number:row.ticket_number,
+
+                passenger_name:row.passenger_name,
+
+                phone:row.phone,
+
+                seat_number: row.seat_number,
+
+                status:row.status,
+
+                bus_id:row.bus_id,
+
+                nomor_bus:row.nomor_bus,
+
+                plat_nomor:row.plat_nomor,
+
+                schedule_id:row.schedule_id
+
+            }
+
+        });
+
+    }
+
+    catch(err){
+
+        console.log(err);
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+};

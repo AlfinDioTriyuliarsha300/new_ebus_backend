@@ -14,4 +14,9 @@ router.post(
     ticketController.buyTicket
 );
 
+router.get(
+    "/my/:userId",
+    ticketController.getMyTicket
+);
+
 module.exports = router;
