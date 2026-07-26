@@ -633,14 +633,96 @@ exports.updateLocation = async (req,res)=>{
         );
 
         await geofenceService.checkBusGeofence(
-
             busId,
-
             Number(latitude),
-
             Number(longitude)
-
         );
+
+        /*
+        =====================================
+        STATUS BERDASARKAN KECEPATAN
+        =====================================
+        */
+
+        let statusBus = "Lancar";
+
+        const currentSpeed = Number(speed);
+
+        if (currentSpeed <= 0) {
+            statusBus = "Berhenti";
+        } else if (currentSpeed < 30) {
+            statusBus = "Lambat";
+        } else {
+            statusBus = "Lancar";
+        }
+
+        await pool.query(
+        `
+        UPDATE buses
+        SET status = $1
+        WHERE id = $2
+        `,
+        [
+            statusBus,
+            busId
+        ]
+        );
+
+        /*
+        =====================================
+        AMBIL DATA BUS TERBARU
+        =====================================
+        */
+
+        const latestBus = await pool.query(
+        `
+        SELECT
+
+        current_zone,
+        current_zone_status,
+        progress,
+        status
+
+        FROM buses
+
+        WHERE id=$1
+        `,
+        [
+            busId
+        ]
+        );
+
+        const bus = latestBus.rows[0];
+
+        /*
+        =====================================
+        SOCKET EMIT
+        =====================================
+        */
+
+        global.io.emit("bus_location", {
+
+          bus_id: busId,
+
+          latitude: Number(latitude),
+
+          longitude: Number(longitude),
+
+          speed: Number(speed),
+
+          heading: Number(heading),
+
+          accuracy: Number(accuracy),
+
+          current_zone: bus.current_zone,
+
+          current_zone_status: bus.current_zone_status,
+
+          progress: Number(bus.progress),
+
+          status: bus.status
+
+      });
 
         res.json({
 
