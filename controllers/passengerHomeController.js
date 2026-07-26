@@ -4,57 +4,67 @@ const {
     generateTicketNumber
 } = require("../services/ticketGenerator");
 
-exports.getHome = async (req,res)=>{
+exports.getHome = async (req, res) => {
 
-    try{
+    try {
 
-        const routes =
-        await pool.query(
+        const result = await pool.query(
+        `
+        SELECT
 
-            `
-            SELECT
+            s.id AS schedule_id,
 
-                r.id,
+            s.jam_berangkat,
 
-                r.nama_rute,
+            s.jam_tiba,
 
-                c.company_name,
+            s.status,
 
-                COUNT(b.id) AS total_bus
+            b.id AS bus_id,
 
-            FROM routes r
+            b.nomor_bus,
 
-            LEFT JOIN schedules s
-            ON s.route_id=r.id
+            b.plat_nomor,
 
-            LEFT JOIN buses b
-            ON b.id=s.bus_id
+            c.company_name,
 
-            LEFT JOIN companies c
-            ON c.id=b.company_id
+            r.id AS route_id,
 
-            GROUP BY
+            r.nama_rute
 
-            r.id,
+        FROM schedules s
 
-            c.company_name
+        JOIN buses b
+        ON b.id = s.bus_id
 
-            ORDER BY r.nama_rute
-            `
+        JOIN companies c
+        ON c.id = b.company_id
 
-        );
+        JOIN routes r
+        ON r.id = s.route_id
+
+        WHERE
+
+            s.status='Aktif'
+
+        ORDER BY
+
+            s.jam_berangkat ASC
+        `);
 
         res.json({
 
             success:true,
 
-            data:routes.rows
+            data:result.rows
 
         });
 
     }
 
     catch(err){
+
+        console.log(err);
 
         res.status(500).json({
 
