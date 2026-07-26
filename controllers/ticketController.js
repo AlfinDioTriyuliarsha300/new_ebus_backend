@@ -91,3 +91,82 @@ exports.getAvailableBuses = async (req, res) => {
 
   }
 };
+
+exports.buyTicket = async (req, res) => {
+    try {
+
+        const {
+            passenger_name,
+            phone,
+            bus_id,
+            schedule_id,
+            user_id
+        } = req.body;
+
+        if (!passenger_name || !bus_id || !schedule_id) {
+            return res.status(400).json({
+                success: false,
+                message: "Data belum lengkap"
+            });
+        }
+
+        const random =
+            Math.floor(100000 + Math.random() * 900000);
+
+        const ticketNumber = `EB-${random}`;
+
+        const seatNumber =
+            "A" + Math.floor(Math.random() * 20 + 1);
+
+        const result = await pool.query(
+            `
+            INSERT INTO tickets
+            (
+                ticket_number,
+                passenger_name,
+                phone,
+                bus_id,
+                schedule_id,
+                seat_number,
+                user_id
+            )
+
+            VALUES
+            (
+                $1,$2,$3,$4,$5,$6,$7
+            )
+
+            RETURNING id
+            `,
+            [
+                ticketNumber,
+                passenger_name,
+                phone,
+                bus_id,
+                schedule_id,
+                seatNumber,
+                user_id ?? null
+            ]
+        );
+
+        res.json({
+            success: true,
+            message: "Tiket berhasil dibuat",
+            data: {
+                id: result.rows[0].id,
+                ticket_number: ticketNumber,
+                seat_number: seatNumber
+            }
+        });
+
+    } catch (err) {
+
+        console.log(err);
+
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+
+    }
+};

@@ -9,4 +9,9 @@ router.get(
   ticketController.getAvailableBuses
 );
 
+router.post(
+    "/buy",
+    ticketController.buyTicket
+);
+
 module.exports = router;
