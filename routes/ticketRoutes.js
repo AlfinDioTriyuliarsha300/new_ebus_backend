@@ -19,4 +19,9 @@ router.get(
     ticketController.getMyTicket
 );
 
+router.get(
+    "/history/:userId",
+    ticketController.getMyTickets
+);
+
 module.exports = router;

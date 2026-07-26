@@ -279,3 +279,77 @@ exports.getMyTicket = async (req, res) => {
     }
 
 };
+
+/*
+=========================================
+GET ALL MY TICKETS
+GET /api/tickets/history/:userId
+=========================================
+*/
+
+exports.getMyTickets = async (req, res) => {
+
+    try {
+
+        const userId = parseInt(req.params.userId);
+
+        const result = await pool.query(
+        `
+        SELECT
+
+            t.id,
+            t.ticket_number,
+            t.passenger_name,
+            t.phone,
+            t.seat_number,
+            t.status,
+
+            b.id AS bus_id,
+            b.nomor_bus,
+            b.plat_nomor,
+
+            s.id AS schedule_id,
+            s.tanggal_berangkat,
+            s.jam_berangkat,
+            s.harga_tiket
+
+        FROM tickets t
+
+        JOIN buses b
+        ON b.id = t.bus_id
+
+        JOIN schedules s
+        ON s.id = t.schedule_id
+
+        WHERE t.user_id = $1
+
+        ORDER BY t.created_at DESC
+        `,
+        [userId]
+        );
+
+        res.json({
+
+            success: true,
+
+            data: result.rows
+
+        });
+
+    }
+
+    catch(err){
+
+        console.log(err);
+
+        res.status(500).json({
+
+            success:false,
+
+            message:err.message
+
+        });
+
+    }
+
+};
