@@ -288,15 +288,11 @@ GET /api/tickets/history/:userId
 */
 
 exports.getMyTickets = async (req, res) => {
-
     try {
-
         const userId = parseInt(req.params.userId);
-
         const result = await pool.query(
         `
         SELECT
-
             t.id,
             t.ticket_number,
             t.passenger_name,
@@ -329,27 +325,15 @@ exports.getMyTickets = async (req, res) => {
         );
 
         res.json({
-
             success: true,
-
             data: result.rows
-
         });
 
-    }
-
-    catch(err){
-
+    } catch(err){
         console.log(err);
-
         res.status(500).json({
-
             success:false,
-
             message:err.message
-
         });
-
     }
-
 };

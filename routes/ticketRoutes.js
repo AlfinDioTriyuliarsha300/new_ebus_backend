@@ -20,7 +20,7 @@ router.get(
 );
 
 router.get(
-    "/history/:userId",
+    "/my-list/:userId",
     ticketController.getMyTickets
 );
 
