@@ -16,7 +16,7 @@ async function testConnection() {
   } catch (err) {
 
     console.error(
-      "DATABASE ERROR:"
+      "DATABASE ERROR:TEST"
     );
 
     console.error(err);
