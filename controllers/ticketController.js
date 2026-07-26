@@ -1,423 +1,93 @@
 const pool = require("../config/database");
 
-// ===================================
-// GET ALL TICKETS
-// ===================================
-const getTickets = async (req, res) => {
+/*
+=========================================
+GET AVAILABLE BUSES
+GET /api/tickets/buses
+=========================================
+*/
+
+exports.getAvailableBuses = async (req, res) => {
   try {
 
     const result = await pool.query(`
       SELECT
 
-        t.id,
-        t.ticket_number,
-        t.passenger_name,
-        t.phone,
-        t.seat_number,
-        t.status,
-
         b.id AS bus_id,
         b.nomor_bus,
         b.plat_nomor,
+        b.status,
 
-        s.id AS schedule_id
+        c.company_name,
 
-      FROM tickets t
+        s.id AS schedule_id,
+        s.tanggal_berangkat,
+        s.jam_berangkat,
+        s.harga_tiket,
 
-      JOIN buses b
-      ON b.id = t.bus_id
+        r.nama_rute
 
-      JOIN schedules s
-      ON s.id = t.schedule_id
+      FROM buses b
 
-      ORDER BY t.id DESC
+      INNER JOIN companies c
+      ON c.id = b.company_id
+
+      INNER JOIN schedules s
+      ON s.bus_id = b.id
+
+      INNER JOIN routes r
+      ON r.id = s.route_id
+
+      WHERE s.status = 'Aktif'
+
+      ORDER BY
+      s.tanggal_berangkat,
+      s.jam_berangkat
     `);
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    const buses = result.rows.map((row) => ({
 
-  } catch (err) {
+      bus_id: row.bus_id,
 
-    console.log(err);
+      nomor_bus: row.nomor_bus,
 
-    res.status(500).json({
-      success: false,
-      message: err.message
-    });
+      plat_nomor: row.plat_nomor,
 
-  }
-};
+      status: row.status,
 
-const getTicketByUser = async (req, res) => {
+      company: row.company_name,
 
-  try {
+      schedule_id: row.schedule_id,
 
-    const { userId } = req.params;
+      tanggal_berangkat: row.tanggal_berangkat,
 
-    const result = await pool.query(
-      `
-      SELECT
+      jam_berangkat: row.jam_berangkat,
 
-        t.id,
-        t.ticket_number,
-        t.passenger_name,
-        t.phone,
-        t.seat_number,
-        t.status,
+      harga_tiket: row.harga_tiket,
 
-        b.id AS bus_id,
-        b.nomor_bus,
-        b.plat_nomor,
+      route: row.nama_rute,
 
-        s.id AS schedule_id
-
-      FROM tickets t
-
-      JOIN buses b
-      ON b.id = t.bus_id
-
-      JOIN schedules s
-      ON s.id = t.schedule_id
-
-      WHERE t.user_id = $1
-
-      ORDER BY t.id DESC
-      `,
-      [userId]
-    );
+    }));
 
     res.json({
 
       success: true,
 
-      data: result.rows
+      data: buses,
 
     });
 
   } catch (err) {
 
-    console.log(err);
+    console.error(err);
 
     res.status(500).json({
 
       success: false,
 
-      message: err.message
+      message: err.message,
 
     });
 
   }
-
-};
-
-// ===================================
-// GET TICKET BY ID
-// ===================================
-const getTicketById = async (req, res) => {
-
-  try {
-
-    const { id } = req.params;
-
-    const result = await pool.query(
-      `
-      SELECT *
-
-      FROM tickets
-
-      WHERE id=$1
-      `,
-      [id]
-    );
-
-    if (result.rows.length == 0) {
-
-      return res.status(404).json({
-
-        success: false,
-
-        message: "Ticket tidak ditemukan"
-
-      });
-
-    }
-
-    res.json({
-
-      success: true,
-
-      data: result.rows[0]
-
-    });
-
-  } catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-
-      success: false,
-
-      message: err.message
-
-    });
-
-  }
-
-};
-
-// ===================================
-// CREATE TICKET
-// ===================================
-const createTicket = async (req, res) => {
-
-  try {
-
-    const {
-        user_id,
-        passenger_name,
-        phone,
-        bus_id,
-        schedule_id,
-        seat_number
-    } = req.body;
-
-    // ==========================
-    // Generate Ticket Number
-    // ==========================
-
-    const total =
-      await pool.query(
-        `
-        SELECT COUNT(*) total
-
-        FROM tickets
-        `
-      );
-
-    const running =
-      Number(total.rows[0].total) + 1;
-
-    const year =
-      new Date().getFullYear();
-
-    const ticketNumber =
-      `EBUS${year}${String(running).padStart(5, "0")}`;
-
-    // ==========================
-
-    const result =
-      await pool.query(
-
-        `
-        INSERT INTO tickets
-        (
-
-            ticket_number,
-            user_id,
-            passenger_name,
-            phone,
-            bus_id,
-            schedule_id,
-            seat_number
-
-        )
-
-        VALUES
-
-        ($1,$2,$3,$4,$5,$6)
-
-        RETURNING *
-
-        `,
-
-        [
-            ticketNumber,
-            user_id,
-            passenger_name,
-            phone,
-            bus_id,
-            schedule_id,
-            seat_number
-        ]
-
-      );
-
-    res.json({
-
-      success: true,
-
-      data: result.rows[0]
-
-    });
-
-  } catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-
-      success: false,
-
-      message: err.message
-
-    });
-
-  }
-
-};
-
-// ===================================
-// UPDATE TICKET
-// ===================================
-const updateTicket = async (req, res) => {
-
-  try {
-
-    const { id } = req.params;
-
-    const {
-
-      passenger_name,
-      phone,
-      bus_id,
-      schedule_id,
-      seat_number,
-      status
-
-    } = req.body;
-
-    const result =
-      await pool.query(
-
-        `
-        UPDATE tickets
-
-        SET
-
-        passenger_name=$1,
-
-        phone=$2,
-
-        bus_id=$3,
-
-        schedule_id=$4,
-
-        seat_number=$5,
-
-        status=$6,
-
-        updated_at=NOW()
-
-        WHERE id=$7
-
-        RETURNING *
-
-        `,
-
-        [
-
-          passenger_name,
-
-          phone,
-
-          bus_id,
-
-          schedule_id,
-
-          seat_number,
-
-          status,
-
-          id
-
-        ]
-
-      );
-
-    res.json({
-
-      success: true,
-
-      data: result.rows[0]
-
-    });
-
-  } catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-
-      success: false,
-
-      message: err.message
-
-    });
-
-  }
-
-};
-
-// ===================================
-// DELETE TICKET
-// ===================================
-const deleteTicket = async (req, res) => {
-
-  try {
-
-    const { id } = req.params;
-
-    await pool.query(
-
-      `
-      DELETE FROM tickets
-
-      WHERE id=$1
-      `,
-
-      [id]
-
-    );
-
-    res.json({
-
-      success: true,
-
-      message: "Ticket berhasil dihapus"
-
-    });
-
-  } catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-
-      success: false,
-
-      message: err.message
-
-    });
-
-  }
-
-};
-
-module.exports = {
-
-  getTickets,
-
-  getTicketById,
-
-  createTicket,
-
-  updateTicket,
-
-  deleteTicket,
-
-  getTicketByUser
-
 };
