@@ -1,4 +1,5 @@
 const pool = require("../config/database");
+const {getDistance,getPathLength,} = require("geolib");
 
 exports.getPassengerTracking = async (req, res) => {
   try {
@@ -179,6 +180,51 @@ exports.getPassengerTracking = async (req, res) => {
       checkpoints = cpResult.rows;
     }
 
+    /*
+    ===========================
+    REMAINING DISTANCE
+    ===========================
+    */
+
+    let remainingDistance = 0;
+
+    if (
+      route &&
+      route.path &&
+      gps.latitude &&
+      gps.longitude
+    ) {
+
+      remainingDistance = calculateRemainingDistance(
+        route.path,
+        {
+          lat: Number(gps.latitude),
+          lng: Number(gps.longitude),
+        }
+      );
+
+    }
+
+    /*
+    ===========================
+    ESTIMATED ARRIVAL
+    ===========================
+    */
+
+    let estimatedMinutes = null;
+
+    const speed = Number(gps.speed);
+
+    if (remainingDistance > 0 && speed > 0) {
+
+      const distanceKm = remainingDistance / 1000;
+
+      estimatedMinutes = Math.round(
+        (distanceKm / speed) * 60
+      );
+
+    }
+
     res.json({
 
       success:true,
@@ -211,13 +257,21 @@ exports.getPassengerTracking = async (req, res) => {
         location:{
             lat:gps.latitude,
             lng:gps.longitude,
+
             speed:gps.speed,
             heading:gps.heading,
             accuracy:gps.accuracy,
+
+            progress:data.progress,
+
+            remaining_distance: remainingDistance,
+
+            estimated_minutes: estimatedMinutes,
+
             updated_at:gps.updated_at,
+            
             current_zone:data.current_zone,
             current_zone_status:data.current_zone_status,
-            progress:data.progress
         },
 
         route:route==null
@@ -265,3 +319,60 @@ exports.getPassengerTracking = async (req, res) => {
   }
 
 };
+
+function calculateRemainingDistance(path, busLocation) {
+
+  if (!Array.isArray(path) || path.length < 2) {
+    return 0;
+  }
+
+  //----------------------------------------
+  // Cari titik polyline paling dekat
+  //----------------------------------------
+
+  let nearestIndex = 0;
+  let nearestDistance = Number.MAX_VALUE;
+
+  for (let i = 0; i < path.length; i++) {
+
+    const d = getDistance(
+      {
+        latitude: busLocation.lat,
+        longitude: busLocation.lng,
+      },
+      {
+        latitude: path[i].lat,
+        longitude: path[i].lng,
+      }
+    );
+
+    if (d < nearestDistance) {
+      nearestDistance = d;
+      nearestIndex = i;
+    }
+  }
+
+  //----------------------------------------
+  // Hitung sisa polyline
+  //----------------------------------------
+
+  let remaining = nearestDistance;
+
+  for (let i = nearestIndex; i < path.length - 1; i++) {
+
+    remaining += getDistance(
+      {
+        latitude: path[i].lat,
+        longitude: path[i].lng,
+      },
+      {
+        latitude: path[i + 1].lat,
+        longitude: path[i + 1].lng,
+      }
+    );
+
+  }
+
+  return Math.round(remaining);
+
+}
