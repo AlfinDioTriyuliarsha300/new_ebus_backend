@@ -12,6 +12,7 @@ const {
   updateUser,
   deleteUser,
   resetPassword,
+  updateFcmToken,
 } = require("../controllers/userController");
 
 router.get("/test", (req, res) => {
@@ -54,6 +55,11 @@ router.delete(
 router.put(
   "/reset-password/:id",
   resetPassword
+);
+
+router.post(
+  "/fcm-token",
+  updateFcmToken
 );
 
 module.exports = router;

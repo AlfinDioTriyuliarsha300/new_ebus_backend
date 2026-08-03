@@ -316,3 +316,48 @@ exports.deleteUser = async (req, res) => {
   }
 
 };
+
+// =====================================
+// UPDATE FCM TOKEN
+// =====================================
+exports.updateFcmToken = async (req, res) => {
+  try {
+    const {
+      user_id,
+      fcm_token,
+    } = req.body;
+
+    if (!user_id || !fcm_token) {
+      return res.status(400).json({
+        success: false,
+        message: "user_id dan fcm_token wajib diisi",
+      });
+    }
+
+    await pool.query(
+      `
+      UPDATE users
+      SET fcm_token = $1
+      WHERE id = $2
+      `,
+      [
+        fcm_token,
+        user_id,
+      ],
+    );
+
+    res.json({
+      success: true,
+      message: "FCM Token berhasil disimpan",
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
