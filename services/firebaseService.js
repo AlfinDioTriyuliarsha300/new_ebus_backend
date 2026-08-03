@@ -28,6 +28,11 @@ class FirebaseService {
 
       const response = await admin.messaging().send(message);
 
+      console.log("===============");
+      console.log("TOKEN TUJUAN");
+      console.log(token);
+      console.log("===============");
+
       console.log("=================================");
       console.log("Push Notification BERHASIL");
       console.log("Message ID :", response);
