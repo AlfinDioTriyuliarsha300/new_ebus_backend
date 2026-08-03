@@ -3,47 +3,39 @@ const admin = require("../config/firebaseService");
 class FirebaseService {
   async sendNotification(token, title, body, data = {}) {
     try {
-      if (!token) {
-        console.log("FCM Token kosong.");
-        return false;
-      }
+      console.log("========== SEND FCM ==========");
+      console.log("TOKEN :", token);
+      console.log("TITLE :", title);
+      console.log("BODY  :", body);
 
       const message = {
-        token,
+        token: token,
 
         notification: {
-          title,
-          body,
+          title: title,
+          body: body,
         },
 
-        data,
+        data: {
+          type: data.type ?? "test",
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
 
         android: {
           priority: "high",
-          notification: {
-            sound: "default",
-          },
         },
       };
 
+      console.log(message);
+
       const response = await admin.messaging().send(message);
 
-      console.log("===============");
-      console.log("TOKEN TUJUAN");
-      console.log(token);
-      console.log("===============");
-
-      console.log("=================================");
-      console.log("Push Notification BERHASIL");
-      console.log("Message ID :", response);
-      console.log("=================================");
+      console.log("MESSAGE ID :", response);
 
       return true;
-    } catch (err) {
-      console.log("=================================");
-      console.log("Push Notification GAGAL");
-      console.log(err.message);
-      console.log("=================================");
+    } catch (e) {
+      console.log("FCM ERROR");
+      console.log(e);
 
       return false;
     }
