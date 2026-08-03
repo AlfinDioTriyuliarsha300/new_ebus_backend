@@ -13,6 +13,7 @@ const {
   deleteUser,
   resetPassword,
   updateFcmToken,
+  testNotification,
 } = require("../controllers/userController");
 
 router.get("/test", (req, res) => {
@@ -60,6 +61,11 @@ router.put(
 router.post(
   "/fcm-token",
   updateFcmToken
+);
+
+router.post(
+  "/test-notification",
+  testNotification
 );
 
 module.exports = router;
