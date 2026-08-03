@@ -25,6 +25,7 @@ const driverTrackingRoutes = require("./routes/driverTrackingRoutes");
 const ticketRoutes = require("./routes/ticketRoutes");
 const passengerTrackingRoutes = require("./routes/passengerTrackingRoutes");
 const passengerHomeRoutes = require("./routes/passengerHomeRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const http = require("http"); 
 const app = express(); 
@@ -63,6 +64,7 @@ app.use("/api/driver",driverTrackingRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/passenger/tracking",passengerTrackingRoutes);
 app.use("/api/passenger/home",passengerHomeRoutes);
+app.use("/api/notification",notificationRoutes);
 
 app.get("/", async (req, res) => {
   try {
