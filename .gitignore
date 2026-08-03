@@ -3,5 +3,4 @@ node_modules/
 npm-debug.log
 .DS_Store
 
-config/
-serviceAccountKey.json
+config/serviceAccountKey.json
