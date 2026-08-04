@@ -17,12 +17,16 @@ class FirebaseService {
         },
 
         data: {
-          type: data.type ?? "test",
           click_action: "FLUTTER_NOTIFICATION_CLICK",
+          ...data
         },
 
         android: {
           priority: "high",
+          notification: {
+              channelId: "geofence_channel",
+              sound: "default"
+          }
         },
       };
 

@@ -16,6 +16,13 @@ exports.checkBusGeofence = async (
   longitude
 ) => {
   try {
+    console.log("================================");
+    console.log("CHECK GEOFENCE DIPANGGIL");
+    console.log("BUS :", busId);
+    console.log("LAT :", latitude);
+    console.log("LNG :", longitude);
+    console.log("================================");
+    
     /*
     ==========================
     AMBIL SCHEDULE AKTIF
@@ -34,6 +41,9 @@ exports.checkBusGeofence = async (
         [busId]
       );
 
+      console.log("SCHEDULE RESULT");
+      console.log(scheduleResult.rows);
+
     if (scheduleResult.rows.length == 0) {
       console.log("Tidak ada schedule aktif");
       return;
@@ -41,6 +51,7 @@ exports.checkBusGeofence = async (
 
     const routeId =
       scheduleResult.rows[0].route_id;
+      console.log("ROUTE ID :", routeId);
 
     /*
     ==========================
@@ -133,6 +144,11 @@ exports.checkBusGeofence = async (
       });
     }
 
+    console.log("==========================");
+    console.log("TOTAL ZONE :", zones.length);
+    console.log(zones);
+    console.log("==========================");
+
     /*
     ===================================
     CEK SATU PER SATU
@@ -196,6 +212,23 @@ exports.checkBusGeofence = async (
           },
           200
         );
+
+        const distance =
+          geolib.getDistance(
+          {
+              latitude,
+              longitude
+          },
+          {
+              latitude:Number(zone.lat),
+              longitude:Number(zone.lng)
+          });
+
+          console.log("--------------------------------");
+          console.log("ZONE :", zone.nama);
+          console.log("DISTANCE :", distance);
+          console.log("INSIDE :", inside);
+          console.log("--------------------------------");
 
       if (inside) {
          insideAnyZone = true;
@@ -288,7 +321,7 @@ exports.checkBusGeofence = async (
 
         /*
         ==================================
-        AMBIL SELURUH TOKEN PENERIMA
+        AMBIL TOKEN PENERIMA
         ==================================
         */
 
@@ -303,112 +336,78 @@ exports.checkBusGeofence = async (
         u.fcm_token IS NOT NULL
 
         AND
-
         (
 
-        /* DRIVER */
         u.id IN
         (
         SELECT d.user_id
-
         FROM drivers d
-
         JOIN buses b
         ON b.driver_id=d.id
-
         WHERE b.id=$1
         )
-
         OR
-
-        /* PENUMPANG */
         u.id IN
         (
-        SELECT t.user_id
-
-        FROM tickets t
-
-        WHERE t.bus_id=$1
+          SELECT t.user_id
+          FROM tickets t
+          WHERE t.bus_id=$1
         )
-
         OR
-
-        /* ADMIN PERUSAHAAN */
         u.company_id=
-        (
-        SELECT company_id
-
-        FROM buses
-
-        WHERE id=$1
-        )
-
+          (
+            SELECT company_id
+            FROM buses
+            WHERE id=$1
+          )
         )
         `,
-        [
-        busId
-        ]
+          [
+            busId
+          ]
         );
-        
-        if (tokenResult.rows.length > 0) {
 
-          console.log("================================");
-          console.log("TOTAL PENERIMA");
-          console.log(tokenResult.rows.length);
-          console.log("================================");
+        console.log("==============================");
+        console.log("TOKEN RESULT");
+        console.log(tokenResult.rows);
+        console.log("==============================");
 
-          for (const finalToken of tokenResult.rows) {
+        if (tokenResult.rows.length == 0) {
+            console.log("TIDAK ADA TOKEN FCM");
+            return;
+        }
 
-              if (!finalToken.fcm_token) {
-                  continue;
-              }
+        console.log("TOTAL TOKEN :", tokenResult.rows.length);
 
-              console.log("==============================");
-              console.log("SEND FCM");
-              console.log(finalToken.fcm_token);
-              console.log("==============================");
-
-              await firebaseService.sendNotification(
-
-                  finalToken.fcm_token,
-
-                  "Geofence",
-
-                  `Bus memasuki ${zone.nama}`,
-
-                  {
-                      type: "geofence",
-                      zone: zone.nama,
-                      bus_id: busId.toString(),
-                  }
-              );
+        for (const item of tokenResult.rows) {
+            if (!item.fcm_token) {
+                continue;
             }
-        }
 
-        {
+            console.log("==============================");
+            console.log("KIRIM FCM");
+            console.log(item.fcm_token);
+            console.log("==============================");
 
-          console.log("=================================");
-          console.log("MENGIRIM FCM");
-          console.log("Bus :", busId);
-          console.log("Zone:", zone.nama);
-          console.log("Token:", tokenResult.rows[0].fcm_token);
-          console.log("=================================");
-
+            const success =
             await firebaseService.sendNotification(
-              tokenResult.rows[0].fcm_token,
-              "Geofence",
-              `Bus memasuki ${zone.nama}`,
-              {
-                  type: "geofence",
-                  zone: zone.nama,
-                  bus_id: busId.toString(),
-              }
+                item.fcm_token,
+                "Geofence",
+                `Bus memasuki ${zone.nama}`,
+                {
+                    type:"geofence",
+                    zone:zone.nama,
+                    bus_id:busId.toString()
+                }
             );
-
+            console.log("HASIL :", success);
         }
+        // selesai mengirim semua token
         return;
-      }
-    }
+      } // <-- menutup if (inside)
+    } // <-- menu
+        
+        
 
     /*
     ==================================
