@@ -8,17 +8,18 @@ const geolib = require("geolib");
 async function generateRoadPath(points) {
 
   const coordinates = points.map(point => [
-    point.lng,
-    point.lat
+    Number(point.lng),
+    Number(point.lat)
   ]);
+
+  console.log("KOORDINAT ORS");
+  console.log(JSON.stringify(coordinates));
 
   const response = await axios.post(
     "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
-
     {
-      coordinates: coordinates
+      coordinates
     },
-
     {
       headers: {
         Authorization: process.env.ORS_API_KEY,
@@ -27,12 +28,20 @@ async function generateRoadPath(points) {
     }
   );
 
-  return response.data.features[0]
-    .geometry.coordinates
-    .map(coord => ({
-      lat: coord[1],
-      lng: coord[0]
-    }));
+  console.log("STATUS ORS :", response.status);
+  console.log("DATA ORS :", JSON.stringify(response.data));
+
+  if (
+      !response.data.features ||
+      response.data.features.length === 0
+  ) {
+      throw new Error("ORS tidak mengembalikan path.");
+  }
+
+  return response.data.features[0].geometry.coordinates.map(c => ({
+      lat: c[1],
+      lng: c[0]
+  }));
 }
 
 // ===================================
