@@ -130,6 +130,31 @@ const updateBus = async (req, res) => {
       ]
     );
 
+    /*
+    =========================================
+    SYNC SCHEDULE AKTIF
+    =========================================
+    */
+
+    if (schedule_id != null) {
+
+        await pool.query(
+            `
+            UPDATE schedules
+            SET
+                bus_id = $1,
+                route_id = $2
+            WHERE id = $3
+            `,
+            [
+                id,
+                route_id,
+                schedule_id
+            ]
+        );
+
+    }
+
     res.json({
       success: true,
       data: result.rows[0]

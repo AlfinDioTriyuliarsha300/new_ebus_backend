@@ -104,6 +104,20 @@ async (req,res)=>{
         ]
       );
 
+    await pool.query(
+    `
+    UPDATE buses
+    SET
+        schedule_id = $1,
+        route_id = $2
+    WHERE id = $3
+    `,
+    [
+        result.rows[0].id,
+        route_id,
+        bus_id
+    ]);
+
     res.json({
       success:true,
       data: result.rows[0]
@@ -161,6 +175,21 @@ async(req,res)=>{
       ]
     );
 
+    await pool.query(
+    `
+    UPDATE buses
+    SET
+        schedule_id = $1,
+        route_id = $2
+    WHERE id = $3
+    `,
+    [
+        result.rows[0].id,
+        route_id,
+        bus_id
+    ]
+    );
+
     res.json({
       success:true,
       data: result.rows[0]
@@ -176,30 +205,84 @@ async(req,res)=>{
 };
 
 
-exports.deleteSchedule =
-async(req,res)=>{
+exports.deleteSchedule = async (req, res) => {
 
-  try{
+  try {
 
-    const {id}=req.params;
+    const { id } = req.params;
+
+    /*
+    ======================================
+    AMBIL DATA SCHEDULE YANG AKAN DIHAPUS
+    ======================================
+    */
+
+    const scheduleResult = await pool.query(
+      `
+      SELECT
+        bus_id
+      FROM schedules
+      WHERE id = $1
+      `,
+      [id]
+    );
+
+    if (scheduleResult.rows.length > 0) {
+
+      const busId = scheduleResult.rows[0].bus_id;
+
+      /*
+      ======================================
+      HAPUS RELASI BUS HANYA JIKA
+      BUS MASIH MEMAKAI SCHEDULE INI
+      ======================================
+      */
+
+      await pool.query(
+        `
+        UPDATE buses
+        SET
+          schedule_id = NULL,
+          route_id = NULL
+        WHERE
+          id = $1
+          AND schedule_id = $2
+        `,
+        [
+          busId,
+          id
+        ]
+      );
+
+    }
+
+    /*
+    ======================================
+    HAPUS SCHEDULE
+    ======================================
+    */
 
     await pool.query(
       `
       DELETE FROM schedules
-      WHERE id=$1
+      WHERE id = $1
       `,
       [id]
     );
 
     res.json({
-      success:true
+      success: true
     });
 
-  }catch(err){
+  } catch (err) {
+
+    console.log(err);
 
     res.status(500).json({
-      success:false,
+      success: false,
       message: err.message
     });
+
   }
+
 };

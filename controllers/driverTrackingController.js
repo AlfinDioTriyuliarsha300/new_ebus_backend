@@ -89,10 +89,11 @@ exports.getDriverTracking = async (req, res) => {
       ON t2.id = r.end_terminal_id
 
       WHERE
-
-      s.bus_id=$1
-
-      AND s.status='Aktif'
+      s.id = (
+          SELECT schedule_id
+          FROM buses
+          WHERE id = $1
+      )
 
       LIMIT 1
       `,
@@ -659,7 +660,7 @@ exports.updateLocation = async (req,res)=>{
         await pool.query(
         `
         UPDATE buses
-        SET status = $1
+        SET speed_status = $1
         WHERE id = $2
         `,
         [
@@ -681,7 +682,8 @@ exports.updateLocation = async (req,res)=>{
         current_zone,
         current_zone_status,
         progress,
-        status
+        status,
+        speed_status
 
         FROM buses
 
@@ -720,7 +722,7 @@ exports.updateLocation = async (req,res)=>{
 
           progress: Number(bus.progress),
 
-          status: bus.status
+          status: bus.speed_status
 
       });
 
