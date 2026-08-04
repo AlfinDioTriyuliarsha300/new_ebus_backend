@@ -1,4 +1,7 @@
 const pool = require("../config/database");
+const geofenceService = require("../services/geofenceService");
+const routeIndexService = require("../services/routeIndexService");
+const progressService = require("../services/progressService");
 
 // =====================================
 // Update Lokasi Driver
@@ -79,6 +82,29 @@ exports.updateLocation = async (req, res) => {
             `,
             [driver_id]
         );
+
+        if (busResult.rows.length > 0) {
+
+            const busId = busResult.rows[0].id;
+
+            // update progress
+            await routeIndexService.updateRouteIndex(
+                busId,
+                latitude,
+                longitude
+            );
+
+            await progressService.updateProgress(
+                busId
+            );
+
+            // cek geofence
+            await geofenceService.checkBusGeofence(
+                busId,
+                latitude,
+                longitude
+            );
+        }
 
         if (global.io && busResult.rows.length > 0) {
             global.io.emit(

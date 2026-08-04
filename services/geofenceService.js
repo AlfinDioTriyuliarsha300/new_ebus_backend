@@ -1,7 +1,5 @@
 const pool = require("../config/database");
 const geolib = require("geolib");
-const routeIndexService = require("./routeIndexService");
-const progressService = require("./progressService");
 const firebaseService = require("./firebaseService");
 
 /*
@@ -125,22 +123,31 @@ exports.checkBusGeofence = async (
     const zones = [];
     if (startResult.rows.length > 0) {
       zones.push({
-        type: "TERMINAL_AWAL",
-        ...startResult.rows[0],
+          id:startResult.rows[0].id,
+          nama:startResult.rows[0].nama_terminal,
+          lat:startResult.rows[0].lat,
+          lng:startResult.rows[0].lng,
+          type:"TERMINAL_AWAL"
       });
     }
 
     checkpointResult.rows.forEach((cp) => {
         zones.push({
-            type: "CHECKPOINT",
-            ...cp,
+            id:cp.id,
+            nama:cp.nama,
+            lat:cp.lat,
+            lng:cp.lng,
+            type:"CHECKPOINT"
         });
     });
 
     if (endResult.rows.length > 0) {
       zones.push({
-        type: "TERMINAL_TUJUAN",
-        ...endResult.rows[0],
+          id:endResult.rows[0].id,
+          nama:endResult.rows[0].nama_terminal,
+          lat:endResult.rows[0].lat,
+          lng:endResult.rows[0].lng,
+          type:"TERMINAL_TUJUAN"
       });
     }
 
@@ -148,21 +155,6 @@ exports.checkBusGeofence = async (
     console.log("TOTAL ZONE :", zones.length);
     console.log(zones);
     console.log("==========================");
-
-    /*
-    ===================================
-    CEK SATU PER SATU
-    ===================================
-    */
-    await routeIndexService.updateRouteIndex(
-        busId,
-        latitude,
-        longitude
-    );
-
-    await progressService.updateProgress(
-        busId
-    );
 
     /*
     ==================================
@@ -240,15 +232,13 @@ exports.checkBusGeofence = async (
       */
 
       if (
-          currentZone == zone.nama &&
-          currentStatus == "MASUK"
+          currentZone === zone.nama &&
+          currentStatus === "MASUK"
       ) {
 
-          console.log(
-              "Bus masih berada di zona yang sama."
-          );
+          console.log("Masih di dalam geofence");
 
-          return;
+          continue;
       }
 
       console.log(
@@ -325,90 +315,45 @@ exports.checkBusGeofence = async (
         ==================================
         */
 
-        const tokenResult = await pool.query(
-        `
-        SELECT DISTINCT
-        u.fcm_token
-
-        FROM users u
-
-        WHERE
-        u.fcm_token IS NOT NULL
-
-        AND
-        (
-
-        u.id IN
-        (
-        SELECT d.user_id
-        FROM drivers d
-        JOIN buses b
-        ON b.driver_id=d.id
-        WHERE b.id=$1
-        )
-        OR
-        u.id IN
-        (
-          SELECT t.user_id
-          FROM tickets t
-          WHERE t.bus_id=$1
-        )
-        OR
-        u.company_id=
-          (
-            SELECT company_id
-            FROM buses
-            WHERE id=$1
-          )
-        )
-        `,
-          [
-            busId
-          ]
-        );
+        const tokens = await getReceiverTokens(busId);
 
         console.log("==============================");
         console.log("TOKEN RESULT");
-        console.log(tokenResult.rows);
+        console.log(tokens);
         console.log("==============================");
 
-        if (tokenResult.rows.length == 0) {
-            console.log("TIDAK ADA TOKEN FCM");
-            return;
+        if(tokens.length === 0){
+            console.log("TIDAK ADA TOKEN");
+            break;
         }
 
-        console.log("TOTAL TOKEN :", tokenResult.rows.length);
+        for(const item of tokens){
 
-        for (const item of tokenResult.rows) {
-            if (!item.fcm_token) {
+            if(!item.fcm_token){
                 continue;
             }
 
-            console.log("==============================");
-            console.log("KIRIM FCM");
-            console.log(item.fcm_token);
-            console.log("==============================");
+            console.log("KIRIM FCM KE :", item.fcm_token);
 
             const success =
-            await firebaseService.sendNotification(
-                item.fcm_token,
-                "Geofence",
-                `Bus memasuki ${zone.nama}`,
-                {
-                    type:"geofence",
-                    zone:zone.nama,
-                    bus_id:busId.toString()
-                }
-            );
+                await firebaseService.sendNotification(
+                    item.fcm_token,
+                    "Geofence",
+                    `Bus memasuki ${zone.nama}`,
+                    {
+                        type: "geofence",
+                        zone: zone.nama,
+                        bus_id: String(busId)
+                    }
+                );
+
             console.log("HASIL :", success);
         }
-        // selesai mengirim semua token
-        return;
+
+          break;
       } // <-- menutup if (inside)
     } // <-- menu
         
-        
-
     /*
     ==================================
     BUS KELUAR DARI GEOFENCE
@@ -450,3 +395,39 @@ exports.checkBusGeofence = async (
     console.log(err);
   }
 };
+
+async function getReceiverTokens(busId) {
+
+    const result = await pool.query(`
+        SELECT DISTINCT u.fcm_token
+        FROM users u
+        WHERE u.fcm_token IS NOT NULL
+        AND (
+            u.id IN (
+                SELECT d.user_id
+                FROM drivers d
+                JOIN buses b
+                    ON b.driver_id=d.id
+                WHERE b.id=$1
+            )
+
+            OR
+
+            u.id IN (
+                SELECT t.user_id
+                FROM tickets t
+                WHERE t.bus_id=$1
+            )
+
+            OR
+
+            u.company_id=(
+                SELECT company_id
+                FROM buses
+                WHERE id=$1
+            )
+        )
+    `,[busId]);
+
+    return result.rows;
+}
