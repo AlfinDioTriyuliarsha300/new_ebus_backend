@@ -148,6 +148,40 @@ exports.checkBusGeofence = async (
         busId
     );
 
+    /*
+    ==================================
+    AMBIL STATUS BUS SEKARANG
+    ==================================
+    */
+
+    const busStatusResult =
+    await pool.query(
+    `
+    SELECT
+    current_zone,
+    current_zone_status
+    FROM buses
+    WHERE id=$1
+    `,
+    [
+    busId
+    ]
+    );
+
+    const currentZone =
+    busStatusResult.rows[0]?.current_zone;
+
+    const currentStatus =
+    busStatusResult.rows[0]?.current_zone_status;
+
+    /*
+    ==================================
+    FLAG APAKAH BUS BERADA DI GEOFENCE
+    ==================================
+    */
+
+    let insideAnyZone = false;
+
     for (const zone of zones) {
       const inside =
         geolib.isPointWithinRadius(
@@ -164,7 +198,27 @@ exports.checkBusGeofence = async (
         );
 
       if (inside) {
-        console.log(
+         insideAnyZone = true;
+
+      /*
+      ==================================
+      SUDAH DI DALAM ZONA?
+      ==================================
+      */
+
+      if (
+          currentZone == zone.nama &&
+          currentStatus == "MASUK"
+      ) {
+
+          console.log(
+              "Bus masih berada di zona yang sama."
+          );
+
+          return;
+      }
+
+      console.log(
           `BUS ${busId} MASUK ${zone.type} : ${zone.nama}`
         );
 
@@ -232,32 +286,106 @@ exports.checkBusGeofence = async (
           ]
         );
 
-        const tokenResult =
-        await pool.query(
-        `
-        SELECT
+        /*
+        ==================================
+        AMBIL SELURUH TOKEN PENERIMA
+        ==================================
+        */
 
+        const tokenResult = await pool.query(
+        `
+        SELECT DISTINCT
         u.fcm_token
 
-        FROM buses b
+        FROM users u
 
-        JOIN drivers d
-        ON d.id = b.driver_id
+        WHERE
+        u.fcm_token IS NOT NULL
 
-        JOIN users u
-        ON u.id = d.user_id
+        AND
 
-        WHERE b.id = $1
+        (
+
+        /* DRIVER */
+        u.id IN
+        (
+        SELECT d.user_id
+
+        FROM drivers d
+
+        JOIN buses b
+        ON b.driver_id=d.id
+
+        WHERE b.id=$1
+        )
+
+        OR
+
+        /* PENUMPANG */
+        u.id IN
+        (
+        SELECT t.user_id
+
+        FROM tickets t
+
+        WHERE t.bus_id=$1
+        )
+
+        OR
+
+        /* ADMIN PERUSAHAAN */
+        u.company_id=
+        (
+        SELECT company_id
+
+        FROM buses
+
+        WHERE id=$1
+        )
+
+        )
         `,
         [
-            busId
+        busId
         ]
         );
+        
+        if (tokenResult.rows.length > 0) {
 
-        if (
-            tokenResult.rows.length > 0 &&
-            tokenResult.rows[0].fcm_token
-        ) {
+          console.log("================================");
+          console.log("TOTAL PENERIMA");
+          console.log(tokenResult.rows.length);
+          console.log("================================");
+
+          for (const finalToken of tokenResult.rows) {
+
+              if (!finalToken.fcm_token) {
+                  continue;
+              }
+
+              console.log("==============================");
+              console.log("SEND FCM");
+              console.log(finalToken.fcm_token);
+              console.log("==============================");
+
+              await firebaseService.sendNotification(
+
+                  finalToken.fcm_token,
+
+                  "Geofence",
+
+                  `Bus memasuki ${zone.nama}`,
+
+                  {
+                      type: "geofence",
+                      zone: zone.nama,
+                      bus_id: busId.toString(),
+                  }
+              );
+            }
+        }
+
+        {
 
           console.log("=================================");
           console.log("MENGIRIM FCM");
@@ -283,20 +411,40 @@ exports.checkBusGeofence = async (
     }
 
     /*
-    ===================================
-    BUS DI LUAR SEMUA ZONE
-    ===================================
+    ==================================
+    BUS KELUAR DARI GEOFENCE
+    ==================================
     */
-    await pool.query(
-      `
-      UPDATE buses
-      SET
-      current_zone=NULL,
-      current_zone_status='DI LUAR'
-      WHERE id=$1
-      `,
-      [busId]
-    );
+
+    if (
+        !insideAnyZone &&
+        currentStatus == "MASUK"
+    ) {
+
+        console.log("==============================");
+        console.log("BUS KELUAR GEOFENCE");
+        console.log("==============================");
+
+        await pool.query(
+        `
+        UPDATE buses
+
+        SET
+
+        current_zone=NULL,
+        current_zone_status='DI LUAR'
+
+        WHERE id=$1
+        `,
+        [
+            busId
+        ]
+        );
+
+        console.log(
+          `BUS ${busId} BERHASIL KELUAR DARI GEOFENCE`
+        );
+    }
   }
 
   catch(err){
