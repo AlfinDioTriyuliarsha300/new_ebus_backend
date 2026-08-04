@@ -15,33 +15,40 @@ async function generateRoadPath(points) {
   console.log("KOORDINAT ORS");
   console.log(JSON.stringify(coordinates));
 
-  const response = await axios.post(
-    "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
-    {
-      coordinates
-    },
-    {
-      headers: {
-        Authorization: process.env.ORS_API_KEY,
-        "Content-Type": "application/json"
+  try {
+
+    const response = await axios.post(
+      "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+      {
+        coordinates
+      },
+      {
+        headers: {
+          Authorization: process.env.ORS_API_KEY,
+          "Content-Type": "application/json"
+        }
       }
-    }
-  );
+    );
 
-  console.log("STATUS ORS :", response.status);
-  console.log("DATA ORS :", JSON.stringify(response.data));
+    console.log("STATUS :", response.status);
 
-  if (
-      !response.data.features ||
-      response.data.features.length === 0
-  ) {
-      throw new Error("ORS tidak mengembalikan path.");
-  }
-
-  return response.data.features[0].geometry.coordinates.map(c => ({
+    return response.data.features[0].geometry.coordinates.map(c => ({
       lat: c[1],
       lng: c[0]
-  }));
+    }));
+
+  } catch (err) {
+
+    console.log("===== ORS ERROR =====");
+
+    console.log("STATUS :", err.response?.status);
+
+    console.log("DATA :");
+
+    console.log(JSON.stringify(err.response?.data, null, 2));
+
+    throw err;
+  }
 }
 
 // ===================================
