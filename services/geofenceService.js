@@ -279,35 +279,7 @@ exports.checkBusGeofence = async (
             ]
         );
 
-        /*
-        ===================================
-        SIMPAN LOG
-        ===================================
-        */
-        await pool.query(
-          `
-          INSERT INTO notifications
-          (
-            bus_id,
-            title,
-            message,
-            created_at
-          )
-
-          VALUES
-          (
-            $1,
-            $2,
-            $3,
-            NOW()
-          )
-          `,
-          [
-            busId,
-            "Geofence",
-            `Bus memasuki ${zone.nama}`
-          ]
-        );
+        
 
         /*
         ==================================
@@ -322,14 +294,48 @@ exports.checkBusGeofence = async (
         console.log(tokens);
         console.log("==============================");
 
-        if(tokens.length === 0){
+        if (tokens.length === 0) {
             console.log("TIDAK ADA TOKEN");
             break;
         }
 
-        for(const item of tokens){
+        for (const item of tokens) {
 
-            if(!item.fcm_token){
+            // Simpan notifikasi ke database
+            await pool.query(
+                `
+                INSERT INTO notifications
+                (
+                    user_id,
+                    bus_id,
+                    title,
+                    message,
+                    type,
+                    is_read,
+                    created_at
+                )
+
+                VALUES
+                (
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    false,
+                    NOW()
+                )
+                `,
+                [
+                    item.id,
+                    busId,
+                    "Geofence",
+                    `Bus memasuki ${zone.nama}`,
+                    "GEOFENCE"
+                ]
+            );
+
+            if (!item.fcm_token) {
                 continue;
             }
 
@@ -350,7 +356,7 @@ exports.checkBusGeofence = async (
             console.log("HASIL :", success);
         }
 
-          break;
+        break;
       } // <-- menutup if (inside)
     } // <-- menu
         
@@ -399,7 +405,9 @@ exports.checkBusGeofence = async (
 async function getReceiverTokens(busId) {
 
     const result = await pool.query(`
-        SELECT DISTINCT u.fcm_token
+        SELECT DISTINCT
+            u.id,
+            u.fcm_token
         FROM users u
         WHERE u.fcm_token IS NOT NULL
         AND (
