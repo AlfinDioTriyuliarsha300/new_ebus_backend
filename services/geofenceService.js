@@ -13,7 +13,6 @@ exports.checkBusGeofence = async (
   latitude,
   longitude
 ) => {
-  throw new Error("INI TEST RAILWAY");
   try {
     console.log("================================");
     console.log("CHECK GEOFENCE DIPANGGIL");
